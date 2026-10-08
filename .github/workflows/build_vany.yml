@@ -1,0 +1,42 @@
+name: Build VANY ROM
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Maximize Build Space Safely
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          sudo apt-get clean
+          df -h
+
+      - name: Set up Build Environment
+        run: |
+          sudo apt-update || sudo apt-get update
+          sudo apt-get install -y bc flex bison build-essential zip curl zlib1g-dev gcc-multilib g++-multilib libc6-dev-i386 lib32ncurses5-dev x11proto-core-dev libx11-dev lib32z1-dev libgl1-mesa-dev libxml2-utils xsltproc unzip fontconfig repo git
+          git config --global user.name "Muaj"
+          git config --global user.email "muaj@example.com"
+
+      - name: Sync Source Code and Build
+        run: |
+          mkdir -p ~/android/lineage
+          cd ~/android/lineage
+          repo init -u https://github.com/LineageOS/android.git -b lineage-15.1 --git-lfs --depth=1
+          
+          # OpenGApps (Google Services & Setup Wizard) অন্তর্ভুক্ত করার আদেশ
+          mkdir -p .repo/local_manifests
+          echo '<manifest><project path="vendor/google" name="opengapps/aosp_build" revision="master" remote="github" /></manifest>' > .repo/local_manifests/opengapps.xml
+          
+          repo sync -c -j$(nproc --all) --force-sync --no-clone-bundle --no-tags
+          source build/envsetup.sh
+          lunch lineage_vany8-userdebug
+          mka bacon -j$(nproc --all)
